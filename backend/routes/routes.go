@@ -24,7 +24,6 @@ func SetupRoutes(router *gin.Engine, db *sql.DB) {
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "OK", "message": "API is running"})
 	})
-
 	// API version group
 	v1 := router.Group("/api/v1")
 	{
@@ -36,6 +35,7 @@ func SetupRoutes(router *gin.Engine, db *sql.DB) {
 			auth.POST("/refresh", userHandler.RefreshToken)
 			auth.POST("/forgot-password", userHandler.RequestPasswordReset)
 			auth.POST("/reset-password", userHandler.ResetPassword)
+			auth.GET("/check-email", userHandler.CheckEmail)
 		}
 
 		// Protected routes (auth required)

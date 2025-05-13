@@ -15,7 +15,7 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-# Build the application
+# Build the application without including migration utility
 RUN CGO_ENABLED=1 GOOS=linux go build -a -o habitrack-server .
 
 # Create final lightweight image

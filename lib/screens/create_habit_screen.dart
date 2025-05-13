@@ -75,10 +75,20 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
         }
         reminderDaysString = selectedDays.join(',');
       }
+      // Use the helper method to get user ID as integer
+      final userId = authProvider.getUserIdAsInt();
+      if (userId == null) {
+        setState(() {
+          _error =
+              'Invalid user ID format: ${authProvider.user!.id}. Please log out and log in again.';
+          _isLoading = false;
+        });
+        return;
+      }
 
-      // Create the habit
+      // Create the habit with properly parsed user ID
       final habit = Habit(
-        userId: int.parse(authProvider.user!.id),
+        userId: userId,
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         type: _habitType,
@@ -97,7 +107,10 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
         Navigator.pop(context);
       } else {
         setState(() {
-          _error = 'Failed to create habit. Please try again.';
+          // Show the actual error from the provider for better error diagnosis
+          _error =
+              habitProvider.error ??
+              'Failed to create habit. Please try again.';
           _isLoading = false;
         });
       }

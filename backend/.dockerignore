@@ -1,0 +1,12 @@
+# Ignore migration utilities - these are handled in the app
+
+/migrations/run_migrations.go
+
+# Other files to exclude from the Docker context
+
+_.md
+.git
+.gitignore
+.env.example
+_.test
+\*.out

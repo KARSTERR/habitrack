@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -26,6 +27,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // Debounce timer for email check
+  Timer? _emailDebounce;
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -38,15 +42,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
 
+    _emailDebounce?.cancel();
+
     super.dispose();
   }
 
+  // Check email with debounce
+  void _checkEmailWithDebounce(String value, AuthProvider authProvider) {
+    if (_emailDebounce?.isActive ?? false) {
+      _emailDebounce!.cancel();
+    }
+
+    _emailDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (value.isNotEmpty &&
+          RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+        await authProvider.checkEmailAvailability(value);
+      }
+    });
+  }
+
   void _submitForm() async {
+    // Check if email is valid before submitting
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // First check email availability if it hasn't been checked yet
+    if (!authProvider.isEmailChecked) {
+      final email = _emailController.text.trim();
+      if (email.isNotEmpty &&
+          RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        // Wait for email check to complete
+        final isAvailable = await authProvider.checkEmailAvailability(email);
+        if (!isAvailable) {
+          // Don't proceed if email is taken
+          return;
+        }
+      }
+    } else if (!authProvider.isEmailAvailable) {
+      // Don't proceed if we know the email is taken
+      return;
+    }
+
     if (_formKey.currentState?.validate() ?? false) {
       // Hide keyboard
       FocusScope.of(context).unfocus();
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.register(
         _usernameController.text.trim(),
         _emailController.text.trim(),
@@ -95,9 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                  ],
-
-                  // Username field
+                  ], // Username field
                   InputField(
                     controller: _usernameController,
                     label: 'Username',
@@ -114,36 +151,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                     focusNode: _usernameFocus,
                     textInputAction: TextInputAction.next,
-                    onEditingComplete: () {
-                      _usernameFocus.unfocus();
-                      FocusScope.of(context).requestFocus(_emailFocus);
-                    },
+                    nextFocus: _emailFocus,
                   ),
-                  const SizedBox(height: 16),
-
-                  // Email field
+                  const SizedBox(height: 16), // Email field
                   InputField(
                     controller: _emailController,
+                    focusNode: _emailFocus,
+                    nextFocus: _passwordFocus,
                     label: 'Email',
-                    hint: 'Enter your email',
+                    hint: 'Enter your email address',
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
                     prefixIcon: const Icon(Icons.email_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Email is required';
+                        return 'Please enter your email';
                       }
-                      if (!value.contains('@') || !value.contains('.')) {
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
                         return 'Please enter a valid email';
+                      }
+                      if (authProvider.isEmailChecked &&
+                          !authProvider.isEmailAvailable) {
+                        return 'This email is already registered';
                       }
                       return null;
                     },
-                    focusNode: _emailFocus,
-                    textInputAction: TextInputAction.next,
-                    onEditingComplete: () {
-                      _emailFocus.unfocus();
-                      FocusScope.of(context).requestFocus(_passwordFocus);
+                    onChanged: (value) {
+                      _checkEmailWithDebounce(value, authProvider);
                     },
+                    suffixIcon:
+                        authProvider.isCheckingEmail
+                            ? Container(
+                              width: 20,
+                              height: 20,
+                              padding: const EdgeInsets.all(8),
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : authProvider.isEmailChecked
+                            ? authProvider.isEmailAvailable
+                                ? const Icon(Icons.check_circle_outline)
+                                : const Icon(Icons.error_outline)
+                            : null,
+                    suffixIconColor:
+                        authProvider.isEmailChecked
+                            ? authProvider.isEmailAvailable
+                                ? Colors.green
+                                : Colors.red
+                            : null,
                   ),
+
+                  // Show message if email is not available
+                  if (authProvider.isEmailChecked &&
+                      !authProvider.isEmailAvailable) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'This email is already registered. Try logging in instead.',
+                      style: TextStyle(color: colorScheme.error, fontSize: 12),
+                    ),
+                  ],
+
                   const SizedBox(height: 16),
 
                   // Password field

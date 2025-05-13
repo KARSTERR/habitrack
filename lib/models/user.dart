@@ -10,10 +10,20 @@ class User {
     required this.email,
     required this.createdAt,
   });
-
   factory User.fromJson(Map<String, dynamic> json) {
+    // Handle different ID types coming from backend (could be int64 or string)
+    String userId;
+    var rawId = json['id'];
+    if (rawId is int) {
+      userId = rawId.toString();
+    } else if (rawId is String) {
+      userId = rawId;
+    } else {
+      throw FormatException('Unexpected ID format: ${rawId.runtimeType}');
+    }
+
     return User(
-      id: json['id'],
+      id: userId,
       username: json['username'],
       email: json['email'],
       createdAt: DateTime.parse(json['created_at']),

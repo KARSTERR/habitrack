@@ -349,3 +349,26 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 		"last_login": user.LastLogin,
 	})
 }
+
+// CheckEmail checks if an email is already registered
+func (h *UserHandler) CheckEmail(c *gin.Context) {
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	// Create user repository
+	userRepo := models.NewUserRepository(h.DB)
+
+	// Check if user already exists
+	_, err := userRepo.GetByEmail(email)
+	if err == nil {
+		// User exists with this email
+		c.JSON(http.StatusConflict, gin.H{"error": "Email is already registered"})
+		return
+	}
+
+	// Email is available
+	c.JSON(http.StatusOK, gin.H{"message": "Email is available"})
+}

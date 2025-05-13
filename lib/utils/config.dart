@@ -1,6 +1,6 @@
 class Config {
-  // Your development machine's WiFi IP address
-  static const String host = "192.168.1.120";
+  // Special IP for Android emulator to access host machine's localhost
+  static const String host = "10.0.2.2";
 
   // The port your backend is running on
   static const int port = 8080;

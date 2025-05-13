@@ -13,6 +13,9 @@ class InputField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final FocusNode? focusNode;
   final VoidCallback? onEditingComplete;
+  final void Function(String)? onChanged;
+  final FocusNode? nextFocus;
+  final Color? suffixIconColor;
 
   const InputField({
     super.key,
@@ -28,6 +31,9 @@ class InputField extends StatelessWidget {
     this.textInputAction,
     this.focusNode,
     this.onEditingComplete,
+    this.onChanged,
+    this.nextFocus,
+    this.suffixIconColor,
   });
 
   @override
@@ -42,12 +48,24 @@ class InputField extends StatelessWidget {
         maxLines: maxLines,
         textInputAction: textInputAction,
         focusNode: focusNode,
-        onEditingComplete: onEditingComplete,
+        onEditingComplete:
+            onEditingComplete ??
+            (nextFocus != null
+                ? () => FocusScope.of(context).requestFocus(nextFocus)
+                : null),
+        onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
+          prefixIcon:
+              prefixIcon is IconData
+                  ? Icon(prefixIcon as IconData)
+                  : prefixIcon,
+          suffixIcon:
+              suffixIcon is IconData
+                  ? Icon(suffixIcon as IconData, color: suffixIconColor)
+                  : suffixIcon,
+          suffixIconColor: suffixIconColor,
         ),
       ),
     );

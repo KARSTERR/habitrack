@@ -9,14 +9,14 @@ class AuthService {
 
   AuthService({required this.baseUrl, required this.secureStorage});
 
-  bool devMode = true;
-
+  // Setting to false for production use - change to true for development without a backend
+  bool devMode = false;
   Future<void> register({
     required String username,
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/api/v1/auth/register');
+    final url = Uri.parse('$baseUrl/auth/register');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -47,7 +47,7 @@ class AuthService {
       );
     }
 
-    final url = Uri.parse('$baseUrl/api/v1/auth/login');
+    final url = Uri.parse('$baseUrl/auth/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -58,12 +58,23 @@ class AuthService {
       final error = json.decode(response.body);
       throw Exception(error['error'] ?? 'Failed to login');
     }
-
     final data = json.decode(response.body);
     await _saveTokens(data['token'], data['refresh_token']);
 
+    // Handle user_id which could be int or string from backend
+    String userId;
+    var rawId = data['user_id'];
+    if (rawId is int) {
+      userId = rawId.toString();
+    } else if (rawId is String) {
+      userId = rawId;
+    } else {
+      // Fallback in case of unexpected type
+      userId = rawId.toString();
+    }
+
     return User(
-      id: data['user_id'],
+      id: userId,
       username: data['username'],
       email: data['email'],
       createdAt: DateTime.now(),
@@ -89,7 +100,7 @@ class AuthService {
       throw Exception('Not authenticated');
     }
 
-    final url = Uri.parse('$baseUrl/api/v1/user/me');
+    final url = Uri.parse('$baseUrl/user/me');
     final response = await http.get(
       url,
       headers: {
@@ -113,7 +124,7 @@ class AuthService {
         return false;
       }
 
-      final url = Uri.parse('$baseUrl/api/v1/auth/refresh');
+      final url = Uri.parse('$baseUrl/auth/refresh');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -136,7 +147,7 @@ class AuthService {
   }
 
   Future<void> requestPasswordReset(String email) async {
-    final url = Uri.parse('$baseUrl/api/v1/auth/forgot-password');
+    final url = Uri.parse('$baseUrl/auth/forgot-password');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -153,7 +164,7 @@ class AuthService {
     required String token,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/api/v1/auth/reset-password');
+    final url = Uri.parse('$baseUrl/auth/reset-password');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -177,5 +188,26 @@ class AuthService {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
     };
+  }
+
+  // Check if an email is already registered
+  Future<bool> isEmailAvailable(String email) async {
+    try {
+      final url = Uri.parse('$baseUrl/auth/check-email?email=$email');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        return true; // Email is available
+      } else if (response.statusCode == 409) {
+        return false; // Email is already taken
+      } else {
+        // Handle other errors
+        throw Exception('Failed to check email availability');
+      }
+    } catch (e) {
+      // If we can't connect, we'll assume the email is available
+      // and let the registration handle the error
+      return true;
+    }
   }
 }

@@ -11,11 +11,32 @@ class HabitService {
 
   HabitService({required this.baseUrl, required this.authService});
 
+  // Helper debug function to print request details safely
+  void _logRequest(Map<String, dynamic> json, String url) {
+    final sanitizedJson = Map<String, dynamic>.from(json);
+
+    // Add field-by-field checks
+    print('Debug - habit JSON fields:');
+    print(
+      '- user_id: ${sanitizedJson['user_id']} (${sanitizedJson['user_id'].runtimeType})',
+    );
+    print('- name: ${sanitizedJson['name']}');
+    print('- type: ${sanitizedJson['type']}');
+    print('- created_at: ${sanitizedJson['created_at']}');
+    print('- updated_at: ${sanitizedJson['updated_at']}');
+    print('- frequency_unit: ${sanitizedJson['frequency_unit']}');
+
+    // Print the full JSON as well
+    final jsonString = json.toString();
+    print('Full habit JSON: $jsonString');
+    print('URL: $url');
+  }
+
   // Get all habits for the current user
   Future<List<Habit>> getAllHabits({bool includeArchived = false}) async {
     final headers = await authService.getAuthHeaders();
     final url = Uri.parse(
-      '$baseUrl/api/v1/habits${includeArchived ? '?include_archived=true' : ''}',
+      '$baseUrl/habits${includeArchived ? '?include_archived=true' : ''}',
     );
 
     final response = await _client.get(url, headers: headers);
@@ -32,7 +53,7 @@ class HabitService {
   // Get a single habit by ID
   Future<Habit> getHabit(int habitId) async {
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse('$baseUrl/api/v1/habits/$habitId');
+    final url = Uri.parse('$baseUrl/habits/$habitId');
 
     final response = await _client.get(url, headers: headers);
 
@@ -48,21 +69,51 @@ class HabitService {
   // Create a new habit
   Future<Habit> createHabit(Habit habit) async {
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse('$baseUrl/api/v1/habits');
+    // Make sure Content-Type header is properly set and overwrite any existing value
+    headers['Content-Type'] = 'application/json';
 
-    final response = await _client.post(
-      url,
-      headers: headers,
-      body: json.encode(habit.toJson()),
-    );
+    final url = Uri.parse('$baseUrl/habits'); // Print the request for debugging
+    print('Creating habit with URL: $url');
+    print('Headers: $headers');
 
-    if (response.statusCode != 201) {
-      final error = json.decode(response.body);
-      throw Exception(error['error'] ?? 'Failed to create habit');
+    // Use the detailed logging function
+    final habitJson = habit.toJson();
+    _logRequest(habitJson, url.toString());
+    _logRequest(habit.toJson(), url.toString());
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: headers,
+        body: json.encode(habit.toJson()),
+      );
+
+      // Print response for debugging
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      if (response.statusCode != 201) {
+        try {
+          final error = json.decode(response.body);
+          // Log more detailed error information
+          print('Server error message: ${error['error']}');
+          print('Full server error response: $error');
+          throw Exception(
+            error['error'] ??
+                'Failed to create habit (Status ${response.statusCode})',
+          );
+        } catch (e) {
+          throw Exception(
+            'Failed to create habit: Server returned status ${response.statusCode}',
+          );
+        }
+      }
+
+      final data = json.decode(response.body);
+      return Habit.fromJson(data);
+    } catch (e) {
+      print('Error creating habit: $e');
+      throw Exception('Failed to create habit: $e');
     }
-
-    final data = json.decode(response.body);
-    return Habit.fromJson(data);
   }
 
   // Update an existing habit
@@ -70,9 +121,8 @@ class HabitService {
     if (habit.id == null) {
       throw Exception('Cannot update habit without an ID');
     }
-
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse('$baseUrl/api/v1/habits/${habit.id}');
+    final url = Uri.parse('$baseUrl/habits/${habit.id}');
 
     final response = await _client.put(
       url,
@@ -92,7 +142,7 @@ class HabitService {
   // Delete (archive) a habit
   Future<void> deleteHabit(int habitId) async {
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse('$baseUrl/api/v1/habits/$habitId');
+    final url = Uri.parse('$baseUrl/habits/$habitId');
 
     final response = await _client.delete(url, headers: headers);
 
@@ -105,7 +155,7 @@ class HabitService {
   // Track a habit for a specific date
   Future<HabitTrackRecord> trackHabit(HabitTrackRecord record) async {
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse('$baseUrl/api/v1/habits/${record.habitId}/track');
+    final url = Uri.parse('$baseUrl/habits/${record.habitId}/track');
 
     final response = await _client.post(
       url,
@@ -139,9 +189,7 @@ class HabitService {
       queryParams += 'end_date=${endDate.toIso8601String().split('T')[0]}';
     }
 
-    final url = Uri.parse(
-      '$baseUrl/api/v1/habits/$habitId/tracking$queryParams',
-    );
+    final url = Uri.parse('$baseUrl/habits/$habitId/tracking$queryParams');
 
     final response = await _client.get(url, headers: headers);
 
@@ -157,9 +205,7 @@ class HabitService {
   // Get statistics for a habit
   Future<HabitStat> getStats(int habitId, {String period = 'weekly'}) async {
     final headers = await authService.getAuthHeaders();
-    final url = Uri.parse(
-      '$baseUrl/api/v1/habits/$habitId/stats?period=$period',
-    );
+    final url = Uri.parse('$baseUrl/habits/$habitId/stats?period=$period');
 
     final response = await _client.get(url, headers: headers);
 

@@ -63,25 +63,38 @@ class Habit {
       isArchived: json['is_archived'] ?? false,
     );
   }
-
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
+    // Create the base map
+    final json = <String, dynamic>{
+      'user_id': userId, // This should be an integer
       'name': name,
       'description': description,
       'type': type.toString().split('.').last,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'goal': goal,
       'frequency_unit': frequencyUnit.toString().split('.').last,
       'reminder_enabled': reminderEnabled,
-      'reminder_time': reminderTime,
-      'reminder_days': reminderDays,
       'color': color,
       'icon': icon,
       'is_archived': isArchived,
     };
+
+    // Only include ID if it's not null
+    if (id != null) {
+      json['id'] = id;
+    }
+
+    // Only include optional fields if they're not null
+    if (reminderTime != null) json['reminder_time'] = reminderTime;
+    if (reminderDays != null) json['reminder_days'] = reminderDays;
+
+    // Let the backend handle timestamps for new habits
+    // Only provide timestamps for existing habits (with ID)
+    if (id != null) {
+      json['created_at'] = createdAt.toIso8601String();
+      json['updated_at'] = updatedAt.toIso8601String();
+    }
+
+    return json;
   }
 
   Habit copyWith({

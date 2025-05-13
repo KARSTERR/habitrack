@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"gitlab.com/KARSTERRR/habitrack/config"
-	"gitlab.com/KARSTERRR/habitrack/migrations"
+	"gitlab.com/KARSTERRR/habitrack/internal/migration"
 	"gitlab.com/KARSTERRR/habitrack/routes"
 
 	"github.com/gin-contrib/cors"
@@ -26,9 +26,8 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
-
 	// Run database migrations
-	if err := migrations.RunMigrations(db); err != nil {
+	if err := migration.RunMigrations(db); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 

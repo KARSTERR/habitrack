@@ -16,6 +16,11 @@ class AuthProvider with ChangeNotifier {
   User? _user;
   String? _error;
 
+  // Email availability check fields
+  bool _isCheckingEmail = false;
+  bool _isEmailChecked = false;
+  bool _isEmailAvailable = false;
+
   AuthProvider({required AuthService authService})
     : _authService = authService {
     // Check if the user is already logged in
@@ -26,6 +31,11 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   String? get error => _error;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  // Email availability getters
+  bool get isCheckingEmail => _isCheckingEmail;
+  bool get isEmailChecked => _isEmailChecked;
+  bool get isEmailAvailable => _isEmailAvailable;
 
   Future<void> checkAuthStatus() async {
     try {
@@ -121,8 +131,40 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // Check if an email is available for registration
+  Future<bool> checkEmailAvailability(String email) async {
+    _isCheckingEmail = true;
+    _isEmailChecked = false;
+    notifyListeners();
+
+    try {
+      final isAvailable = await _authService.isEmailAvailable(email);
+      _isEmailAvailable = isAvailable;
+      _isEmailChecked = true;
+      _isCheckingEmail = false;
+      notifyListeners();
+      return isAvailable;
+    } catch (e) {
+      _isCheckingEmail = false;
+      notifyListeners();
+      return true; // Assume available if check fails
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  // Safely parse the user ID as an integer
+  int? getUserIdAsInt() {
+    if (_user == null) return null;
+
+    try {
+      return int.parse(_user!.id);
+    } catch (e) {
+      print('Error parsing user ID: ${_user!.id} - $e');
+      return null;
+    }
   }
 }

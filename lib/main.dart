@@ -17,30 +17,32 @@ import 'utils/constants.dart';
 import 'utils/notification_service.dart';
 
 void main() async {
-  // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Set preferred orientations
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // Initialize services
-  final prefs = await SharedPreferences.getInstance();
-  const secureStorage = FlutterSecureStorage();
-  final notificationService = NotificationService();
-  await notificationService.init();
-
-  // Error handling for the entire app
+  // Error handling for the entire app - move everything inside runZonedGuarded
   runZonedGuarded(
-    () => runApp(
-      MyApp(
-        prefs: prefs,
-        secureStorage: secureStorage,
-        notificationService: notificationService,
-      ),
-    ),
+    () async {
+      // Ensure Flutter is initialized - now initialized in the same zone
+      WidgetsFlutterBinding.ensureInitialized();
+
+      // Set preferred orientations
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+
+      // Initialize services
+      final prefs = await SharedPreferences.getInstance();
+      const secureStorage = FlutterSecureStorage();
+      final notificationService = NotificationService();
+      await notificationService.init();
+
+      runApp(
+        MyApp(
+          prefs: prefs,
+          secureStorage: secureStorage,
+          notificationService: notificationService,
+        ),
+      );
+    },
     (error, stack) {
       // In a production app, you might want to log this to a service like Firebase Crashlytics
       debugPrint('Uncaught error: $error');
